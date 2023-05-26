@@ -5,6 +5,8 @@
 
 I created a GCS Public bucket that I'll use for storing the files the user wants to upload.
 
+No database or external dependencies are required.
+
 
 ## Installation
 
