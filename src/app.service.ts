@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { FileSystemService } from '@app/file-system';
 import * as fs from 'fs';
 import * as _ from 'lodash';
-import { ObjFile, Vector3 } from './app.types';
+import { Vector3 } from './app.types';
 
 @Injectable()
 export class AppService {
@@ -26,7 +26,11 @@ export class AppService {
     return this.fileSystemService.getFile(fileName);
   }
 
-  async transformFile(fileName: string, scale: Vector3, offset: Vector3) {
+  async transformFile(
+    fileName: string,
+    scale: Vector3,
+    offset: Vector3,
+  ): Promise<Buffer> {
     if (!scale) {
       scale = { x: 1, y: 1, z: 1 };
     }
@@ -45,41 +49,35 @@ export class AppService {
       return fs.promises.readFile(filePath);
     }
 
-    const fileData = fs.readFileSync(filePath, 'utf-8');
-    const linesToRead = fileData.split('\n');
-
-    const lines = [];
-
-    for (const line of linesToRead) {
-      const parts = line.trim().split(/\s+/);
-      const lineIsAVertex = parts[0] === 'v';
-
-      if (lineIsAVertex) {
-        const vertex: Vector3 = {
-          x: parseFloat(parts[1]),
-          y: parseFloat(parts[2]),
-          z: parseFloat(parts[3]),
-        };
-
-        lines.push('v ' + this.computeVertex(vertex, scale, offset).join(' '));
-      }
-
-      if (!lineIsAVertex) {
-        lines.push(line);
-      }
-    }
-
-    fs.writeFileSync(filePath, lines.join('\n'));
-
-    return fs.promises.readFile(filePath);
+    return await this.fileSystemService.transformFile(
+      filePath,
+      this.computeVertex,
+      scale,
+      offset,
+    );
   }
 
-  computeVertex(vertex: Vector3, scale: Vector3, offset: Vector3) {
-    return [
-      vertex.x * scale.x + offset.x,
-      vertex.y * scale.y + offset.y,
-      vertex.z * scale.z + offset.z,
-    ];
+  computeVertex(line: string, scale: Vector3, offset: Vector3) {
+    const parts = line.trim().split(/\s+/);
+    const lineIsAVertex = parts[0] === 'v';
+
+    if (lineIsAVertex) {
+      const vertex: Vector3 = {
+        x: parseFloat(parts[1]),
+        y: parseFloat(parts[2]),
+        z: parseFloat(parts[3]),
+      };
+
+      const transformedVertex = [
+        vertex.x * scale.x + offset.x,
+        vertex.y * scale.y + offset.y,
+        vertex.z * scale.z + offset.z,
+      ];
+
+      return 'v ' + transformedVertex.join(' ');
+    }
+
+    return line;
   }
 
   async renameFile(oldFileName: string, newFileName: string) {

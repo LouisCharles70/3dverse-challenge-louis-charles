@@ -2,6 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Bucket, Storage, File } from '@google-cloud/storage';
 import { ObjFile } from '../../../src/app.types';
+import { Transform } from 'stream';
+import * as path from 'path';
+import { pipeline } from 'node:stream/promises';
+import * as fs from 'fs';
 
 @Injectable()
 export class FileSystemService {
@@ -87,5 +91,35 @@ export class FileSystemService {
     }
 
     return `${Date.now()}-${fileName}`;
+  }
+
+  async transformFile(filePath: string, transformFunction, scale, offset) {
+    const transform = new Transform({
+      transform(chunk, encoding, callback) {
+        const linesToRead = chunk.toString().split('\n');
+        const lines = [];
+
+        for (const line of linesToRead) {
+          lines.push(transformFunction(line, scale, offset));
+        }
+
+        callback(null, lines.join('\n'));
+      },
+    });
+
+    const { dir, name, ext } = path.parse(filePath);
+
+    // Create a new filename with the suffix
+
+    // Join the directory and new filename to create the full path
+    const copyFilePath = path.join(dir, `${name}-temp${ext}`);
+
+    await pipeline(
+      fs.createReadStream(filePath),
+      transform,
+      fs.createWriteStream(copyFilePath),
+    );
+
+    return fs.promises.readFile(copyFilePath);
   }
 }

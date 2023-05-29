@@ -7,6 +7,7 @@ I created a GCS Public bucket that I'll use for storing the files the user wants
 
 No database or external dependencies are required.
 
+Open API documentation is available at /api
 
 ## Installation
 
